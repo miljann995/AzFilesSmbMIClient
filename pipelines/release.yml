@@ -149,7 +149,7 @@ extends:
             solution: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dll\src\AzFilesSmbMI.vcxproj'
             configuration: '$(BuildConfiguration)'
             platform: '$(BuildPlatform)'
-            #msbuildArguments: '/p:Version=$(PackageVersion)'
+            msbuildArguments: '/p:ControlFlowGuard=Guard'
           env:
             ob_restore_phase: true
 
@@ -160,7 +160,7 @@ extends:
             configuration: '$(BuildConfiguration)'
             platform: $(BuildPlatform)
             restoreNugetPackages: true 
-            msbuildArguments: '/p:Version=$(Build.BuildNumber)'           
+            msbuildArguments: '/p:Version=$(Build.BuildNumber) /p:ControlFlowGuard=Guard'           
             #verbosity: 'Detailed'
           env:
             DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER: 0
@@ -194,6 +194,30 @@ extends:
             ob_restore_phase: true
 
         - task: CopyFiles@2
+          displayName: 'Copy lib to output directory'
+          inputs:
+            SourceFolder: 'AzFilesSmbMIClient\Windows\dotnet\dll\bin\$(BuildPlatform)\$(BuildConfiguration)\net472'
+            Contents: '**/*.lib'              
+            TargetFolder: '$(BuildOutput)'
+            flattenFolders: true
+          env:
+            # Set ob_restore_phase to run this step before '🔒 Setup Signing' step.
+            # https://aka.ms/obpipelines/SigningFileWatcher
+            ob_restore_phase: true
+
+        - task: CopyFiles@2
+          displayName: 'Copy header files to output directory'
+          inputs:
+            SourceFolder: 'AzFilesSmbMIClient\Windows\dll\src'
+            Contents: '**/AzFilesSmbMI.h'
+            TargetFolder: '$(BuildOutput)'
+            flattenFolders: true
+          env:
+            # Set ob_restore_phase to run this step before '🔒 Setup Signing' step.
+            # https://aka.ms/obpipelines/SigningFileWatcher
+            ob_restore_phase: true
+
+        - task: CopyFiles@2
           displayName: 'Copy EXE binaries to output directory'
           inputs:
             SourceFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\exe\bin\$(BuildPlatform)\$(BuildConfiguration)\net472'
@@ -209,7 +233,7 @@ extends:
           inputs:
             command: 'sign'
             signing_profile: 'external_distribution' # https://eng.ms/docs/products/onebranch/signing/containerbuildsigning#signing_profile
-            files_to_sign: '*.exe;*.dll'
+            files_to_sign: '*.exe;*.dll;*.lib'
             search_root: '$(BuildOutput)'
           condition: and(succeeded(), ne(variables['Agent.JobStatus'], 'Failed'))
 
@@ -239,6 +263,14 @@ extends:
           inputs:
             SourceFolder: '$(BuildOutput)'
             Contents: '*.dll'
+            TargetFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dotnet\dll\bin\$(BuildPlatform)\$(BuildConfiguration)\net472'
+            OverWrite: true
+
+        - task: CopyFiles@2
+          displayName: 'Copy signed LIBs back to build directory'
+          inputs:
+            SourceFolder: '$(BuildOutput)'
+            Contents: '*.lib'
             TargetFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dotnet\dll\bin\$(BuildPlatform)\$(BuildConfiguration)\net472'
             OverWrite: true
 
