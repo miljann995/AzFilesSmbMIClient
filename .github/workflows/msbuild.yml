@@ -49,6 +49,10 @@ jobs:
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=ARM64 ${{env.NATIVE_VCXPROJ}}
 
-    - name: Build Managed DLL and EXE
+    - name: Build Managed DLL
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:BuildProjectReferences=false ${{env.DLL_FILE_PATH}}
+
+    - name: Build EXE
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:BuildProjectReferences=false ${{env.EXE_FILE_PATH}}
