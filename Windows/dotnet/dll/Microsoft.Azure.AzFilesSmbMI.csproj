@@ -52,16 +52,32 @@
 
   <!-- Include native DLL and import library in NuGet package -->
   <ItemGroup>
-    <None Include="$(OutDir)AzFilesSmbMI.dll" Condition="Exists('$(OutDir)AzFilesSmbMI.dll')">
+    <!-- x64 native DLL -->
+    <None Include="$(ProjectDir)\..\..\dll\src\x64\$(Configuration)\AzFilesSmbMI.dll"
+          Condition="Exists('$(ProjectDir)\..\..\dll\src\x64\$(Configuration)\AzFilesSmbMI.dll')">
       <Pack>true</Pack>
-      <PackagePath Condition="'$(Platform)' != 'ARM64'">runtimes/win-x64/native/AzFilesSmbMI.dll</PackagePath>
-      <PackagePath Condition="'$(Platform)' == 'ARM64'">runtimes/win-arm64/native/AzFilesSmbMI.dll</PackagePath>
+      <PackagePath>runtimes/win-x64/native/AzFilesSmbMI.dll</PackagePath>
+    </None>
+
+    <!-- ARM64 native DLL -->
+    <None Include="$(ProjectDir)\..\..\dll\src\ARM64\$(Configuration)\AzFilesSmbMI.dll"
+          Condition="Exists('$(ProjectDir)\..\..\dll\src\ARM64\$(Configuration)\AzFilesSmbMI.dll')">
+      <Pack>true</Pack>
+      <PackagePath>runtimes/win-arm64/native/AzFilesSmbMI.dll</PackagePath>
     </None>
     
-    <None Include="$(OutDir)AzFilesSmbMI.lib" Condition="Exists('$(OutDir)AzFilesSmbMI.lib')">
+    <!-- x64 import library -->
+    <None Include="$(ProjectDir)\..\..\dll\src\x64\$(Configuration)\AzFilesSmbMI.lib"
+          Condition="Exists('$(ProjectDir)\..\..\dll\src\x64\$(Configuration)\AzFilesSmbMI.lib')">
       <Pack>true</Pack>
-      <PackagePath Condition="'$(Platform)' != 'ARM64'">runtimes/win-x64/native/AzFilesSmbMI.lib</PackagePath>
-      <PackagePath Condition="'$(Platform)' == 'ARM64'">runtimes/win-arm64/native/AzFilesSmbMI.lib</PackagePath>
+      <PackagePath>runtimes/win-x64/native/AzFilesSmbMI.lib</PackagePath>
+    </None>
+
+    <!-- ARM64 import library -->
+    <None Include="$(ProjectDir)\..\..\dll\src\ARM64\$(Configuration)\AzFilesSmbMI.lib"
+          Condition="Exists('$(ProjectDir)\..\..\dll\src\ARM64\$(Configuration)\AzFilesSmbMI.lib')">
+      <Pack>true</Pack>
+      <PackagePath>runtimes/win-arm64/native/AzFilesSmbMI.lib</PackagePath>
     </None>
 
     <!-- Include .targets file for automatic deployment -->
