@@ -5,12 +5,6 @@ parameters:
     values:
     - Debug
     - Release
-  - name: buildPlatform
-    displayName: Build Platform to Use
-    default: x64
-    values:
-    - x64
-    - ARM64
 
 trigger: none # https://aka.ms/obpipelines/triggers
 
@@ -19,8 +13,6 @@ variables:
   value: true
 - name: BuildConfiguration
   value: ${{ parameters.buildConfig }}
-- name: BuildPlatform
-  value: ${{ parameters.buildPlatform }}
 - name: CDP_DEFINITION_BUILD_COUNT
   value: $[counter('', 0)] # needed for onebranch.pipeline.version task https://aka.ms/obpipelines/versioning
 - name: WindowsContainerImage
@@ -105,14 +97,14 @@ extends:
 
         - task: NuGetAuthenticate@1
           inputs:
-            forceReinstallCredentialProvider: true            
+            forceReinstallCredentialProvider: true
           env:
             # Set ob_restore_phase to run this step before '🔒 Setup Signing' step.
             # https://aka.ms/obpipelines/SigningFileWatcher
             ob_restore_phase: true
 
         - task: onebranch.pipeline.version@1 # generates automatic version. For other versioning options check https://aka.ms/obpipelines/versioning
-          displayName: 'Setup BuildNumber'  
+          displayName: 'Setup BuildNumber'
           inputs:
             system: 'RevisionCounter'
             major: '1'
@@ -132,11 +124,11 @@ extends:
               [Environment]::SetEnvironmentVariable("DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER", "0", "Machine")
               [Environment]::SetEnvironmentVariable("NUGET_CERT_REVOCATION_MODE", "offline", "Machine")
               [Environment]::SetEnvironmentVariable("DOTNET_SKIP_FIRST_TIME_EXPERIENCE", "true", "Machine")
-              
+
               # Configure NuGet sources
               nuget sources clear
               nuget sources add -name "nuget.org" -source "https://api.nuget.org/v3/index.json"
-              
+
               # List sources to verify
               nuget sources list
           env:
@@ -149,12 +141,24 @@ extends:
             # Set ob_restore_phase to run this step before '🔒 Setup Signing' step.
             # https://aka.ms/obpipelines/SigningFileWatcher
             ob_restore_phase: true
+
+        # Build native C++ DLL for both architectures
         - task: MSBuild@1
-          displayName: 'Build Native C++ DLL '
+          displayName: 'Build Native C++ DLL (x64)'
           inputs:
             solution: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dll\src\AzFilesSmbMI.vcxproj'
             configuration: '$(BuildConfiguration)'
-            platform: '$(BuildPlatform)'
+            platform: 'x64'
+            msbuildArguments: '/p:ControlFlowGuard=Guard'
+          env:
+            ob_restore_phase: true
+
+        - task: MSBuild@1
+          displayName: 'Build Native C++ DLL (ARM64)'
+          inputs:
+            solution: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dll\src\AzFilesSmbMI.vcxproj'
+            configuration: '$(BuildConfiguration)'
+            platform: 'ARM64'
             msbuildArguments: '/p:ControlFlowGuard=Guard'
           env:
             ob_restore_phase: true
@@ -164,9 +168,9 @@ extends:
           inputs:
             solution: '$(DllFilePath)'
             configuration: '$(BuildConfiguration)'
-            platform: $(BuildPlatform)
-            restoreNugetPackages: true 
-            msbuildArguments: '/p:Version=$(Build.BuildNumber) /p:ControlFlowGuard=Guard'           
+            platform: x64
+            restoreNugetPackages: true
+            msbuildArguments: '/p:Version=$(Build.BuildNumber) /p:ControlFlowGuard=Guard'
             #verbosity: 'Detailed'
           env:
             DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER: 0
@@ -178,7 +182,7 @@ extends:
           inputs:
             solution: '$(ExeFilePath)'
             configuration: '$(BuildConfiguration)'
-            platform: $(BuildPlatform)
+            platform: x64
             restoreNugetPackages: true
             msbuildArguments: '/p:Version=$(Build.BuildNumber)'
             #verbosity: 'Detailed'
@@ -186,29 +190,37 @@ extends:
             DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER: 0
             NUGET_CERT_REVOCATION_MODE: offline
             ob_restore_phase: true
-        
+
+        # Copy native binaries into architecture-specific subdirectories to avoid filename collisions during signing
         - task: CopyFiles@2
-          displayName: 'Copy DLL binaries to output directory'
+          displayName: 'Copy x64 native binaries to output'
           inputs:
-            SourceFolder: 'AzFilesSmbMIClient\Windows\dotnet\dll\bin\$(BuildPlatform)\$(BuildConfiguration)\net472'
-            Contents: '**/*.dll'              
-            TargetFolder: '$(BuildOutput)'
-            flattenFolders: true
+            SourceFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dll\src\x64\$(BuildConfiguration)'
+            Contents: |
+              AzFilesSmbMI.dll
+              AzFilesSmbMI.lib
+            TargetFolder: '$(BuildOutput)\x64'
           env:
-            # Set ob_restore_phase to run this step before '🔒 Setup Signing' step.
-            # https://aka.ms/obpipelines/SigningFileWatcher
             ob_restore_phase: true
 
         - task: CopyFiles@2
-          displayName: 'Copy lib to output directory'
+          displayName: 'Copy ARM64 native binaries to output'
           inputs:
-            SourceFolder: 'AzFilesSmbMIClient\Windows\dotnet\dll\bin\$(BuildPlatform)\$(BuildConfiguration)\net472'
-            Contents: '**/*.lib'              
-            TargetFolder: '$(BuildOutput)'
-            flattenFolders: true
+            SourceFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dll\src\ARM64\$(BuildConfiguration)'
+            Contents: |
+              AzFilesSmbMI.dll
+              AzFilesSmbMI.lib
+            TargetFolder: '$(BuildOutput)\ARM64'
           env:
-            # Set ob_restore_phase to run this step before '🔒 Setup Signing' step.
-            # https://aka.ms/obpipelines/SigningFileWatcher
+            ob_restore_phase: true
+
+        - task: CopyFiles@2
+          displayName: 'Copy managed DLL to output directory'
+          inputs:
+            SourceFolder: 'AzFilesSmbMIClient\Windows\dotnet\dll\bin\x64\$(BuildConfiguration)\net472'
+            Contents: 'Microsoft.Azure.AzFilesSmbMI.dll'
+            TargetFolder: '$(BuildOutput)'
+          env:
             ob_restore_phase: true
 
         - task: CopyFiles@2
@@ -219,22 +231,18 @@ extends:
             TargetFolder: '$(BuildOutput)'
             flattenFolders: true
           env:
-            # Set ob_restore_phase to run this step before '🔒 Setup Signing' step.
-            # https://aka.ms/obpipelines/SigningFileWatcher
             ob_restore_phase: true
 
         - task: CopyFiles@2
           displayName: 'Copy EXE binaries to output directory'
           inputs:
-            SourceFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\exe\bin\$(BuildPlatform)\$(BuildConfiguration)\net472'
-            Contents: '**/*.exe'            
+            SourceFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\exe\bin\x64\$(BuildConfiguration)\net472'
+            Contents: '**/*.exe'
             TargetFolder: '$(BuildOutput)'
           env:
-            # Set ob_restore_phase to run this step before '🔒 Setup Signing' step.
-            # https://aka.ms/obpipelines/SigningFileWatcher
             ob_restore_phase: true
 
-        - task: onebranch.pipeline.signing@1 
+        - task: onebranch.pipeline.signing@1
           displayName: 'Sign Binaries'
           inputs:
             command: 'sign'
@@ -264,28 +272,37 @@ extends:
             isPreRelease: true
           condition: succeeded()
 
+        # Copy signed native binaries back to native source dirs so the .csproj Exists() conditions find them at pack time
         - task: CopyFiles@2
-          displayName: 'Copy signed DLLs back to build directory'
+          displayName: 'Copy signed x64 native binaries back to source'
           inputs:
-            SourceFolder: '$(BuildOutput)'
-            Contents: '*.dll'
-            TargetFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dotnet\dll\bin\$(BuildPlatform)\$(BuildConfiguration)\net472'
+            SourceFolder: '$(BuildOutput)\x64'
+            Contents: '**'
+            TargetFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dll\src\x64\$(BuildConfiguration)'
             OverWrite: true
 
         - task: CopyFiles@2
-          displayName: 'Copy signed LIBs back to build directory'
+          displayName: 'Copy signed ARM64 native binaries back to source'
           inputs:
-            SourceFolder: '$(BuildOutput)'
-            Contents: '*.lib'
-            TargetFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dotnet\dll\bin\$(BuildPlatform)\$(BuildConfiguration)\net472'
+            SourceFolder: '$(BuildOutput)\ARM64'
+            Contents: '**'
+            TargetFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dll\src\ARM64\$(BuildConfiguration)'
             OverWrite: true
 
         - task: CopyFiles@2
-          displayName: 'Copy signed Headers back to build directory'
+          displayName: 'Copy signed managed DLL back to build directory'
+          inputs:
+            SourceFolder: '$(BuildOutput)'
+            Contents: 'Microsoft.Azure.AzFilesSmbMI.dll'
+            TargetFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dotnet\dll\bin\x64\$(BuildConfiguration)\net472'
+            OverWrite: true
+
+        - task: CopyFiles@2
+          displayName: 'Copy signed headers back to build directory'
           inputs:
             SourceFolder: '$(BuildOutput)'
             Contents: '*.h'
-            TargetFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dotnet\dll\bin\$(BuildPlatform)\$(BuildConfiguration)\net472'
+            TargetFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dotnet\dll\bin\x64\$(BuildConfiguration)\net472'
             OverWrite: true
 
         - task: MSBuild@1
@@ -293,17 +310,17 @@ extends:
           inputs:
             solution: '$(DllFilePath)'
             configuration: '$(BuildConfiguration)'
-            platform: $(BuildPlatform)
+            platform: x64
             msbuildArguments: '/t:Pack /p:NoBuild=true /p:IncludeBuildOutput=true /p:Version=$(Build.BuildNumber)'
 
         - task: CopyFiles@2
           displayName: 'Copy nupkg to package output directory'
           inputs:
-            SourceFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dotnet\dll\bin\$(BuildPlatform)\$(BuildConfiguration)'
+            SourceFolder: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dotnet\dll\bin\x64\$(BuildConfiguration)'
             Contents: '*.nupkg'
             TargetFolder: '$(PackageOutput)'
 
-        - task: onebranch.pipeline.signing@1 
+        - task: onebranch.pipeline.signing@1
           displayName: 'Sign NuGet packages'
           inputs:
             command: 'sign'
@@ -311,4 +328,3 @@ extends:
             files_to_sign: '*.nupkg'
             search_root: '$(PackageOutput)'
           condition: and(succeeded(), ne(variables['Agent.JobStatus'], 'Failed'))
-  

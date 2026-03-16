@@ -15,7 +15,7 @@ env:
   # Path to the solution file relative to the root of the project.
   NATIVE_DLL_FILE_PATH: .\Windows\dll\src\AzFilesSmbMI.vcxproj
   DLL_FILE_PATH: .\Windows\dotnet\dll\Microsoft.Azure.AzFilesSmbMI.csproj
-  EXE_FILE_PATH: .\windows\exe\AzFilesSmbMIClient.csproj
+  EXE_FILE_PATH: .\Windows\exe\AzFilesSmbMIClient.csproj
 
   # Configuration type to build.
   # You can convert this to a build matrix if you need coverage of multiple configuration types.
