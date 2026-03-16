@@ -13,8 +13,6 @@ variables:
   value: true
 - name: BuildConfiguration
   value: ${{ parameters.buildConfig }}
-- name: NativeSrcDir
-  value: '$(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dll\src'
 - name: CDP_DEFINITION_BUILD_COUNT
   value: $[counter('', 0)] # needed for onebranch.pipeline.version task https://aka.ms/obpipelines/versioning
 - name: WindowsContainerImage
@@ -193,7 +191,7 @@ extends:
         - task: CopyFiles@2
           displayName: 'Copy x64 native DLLs/libs to output directory'
           inputs:
-            SourceFolder: '$(NativeSrcDir)\x64\$(BuildConfiguration)'
+            SourceFolder: '$($(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dll\src)\x64\$(BuildConfiguration)'
             Contents: |
               **/*.dll
               **/*.lib
@@ -206,11 +204,11 @@ extends:
         - task: CopyFiles@2
           displayName: 'Copy ARM64 native DLLs/libs to output directory'
           inputs:
-            SourceFolder: '$(NativeSrcDir)\ARM64\$(BuildConfiguration)'
+            SourceFolder: '$($(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dll\src)\arm64\$(BuildConfiguration)'
             Contents: |
               **/*.dll
               **/*.lib
-            TargetFolder: '$(BuildOutput)\ARM64'
+            TargetFolder: '$(BuildOutput)\arm64'
             flattenFolders: true
           env:
             ob_restore_phase: true
@@ -282,17 +280,17 @@ extends:
             Contents: |
               *.dll
               *.lib
-            TargetFolder: '$(NativeSrcDir)\x64\$(BuildConfiguration)'
+            TargetFolder: '$($(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dll\src)\x64\$(BuildConfiguration)'
             OverWrite: true
 
         - task: CopyFiles@2
           displayName: 'Copy signed ARM64 native binaries back to build directory'
           inputs:
-            SourceFolder: '$(BuildOutput)\ARM64'
+            SourceFolder: '$(BuildOutput)\arm64'
             Contents: |
               *.dll
               *.lib
-            TargetFolder: '$(NativeSrcDir)\ARM64\$(BuildConfiguration)'
+            TargetFolder: '$($(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dll\src)\arm64\$(BuildConfiguration)'
             OverWrite: true
 
         - task: CopyFiles@2
@@ -300,7 +298,7 @@ extends:
           inputs:
             SourceFolder: '$(BuildOutput)'
             Contents: '*.h'
-            TargetFolder: '$(NativeSrcDir)\x64\$(BuildConfiguration)'
+            TargetFolder: '$($(Build.SourcesDirectory)\AzFilesSmbMIClient\Windows\dll\src)\x64\$(BuildConfiguration)'
             OverWrite: true
 
         - task: MSBuild@1
