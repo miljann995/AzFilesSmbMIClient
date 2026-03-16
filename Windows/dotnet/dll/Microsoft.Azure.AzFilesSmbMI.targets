@@ -5,5 +5,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
+    <Content Include="$(MSBuildThisFileDirectory)../runtimes/win-arm64/native/AzFilesSmbMI.dll" Condition="'$(Platform)' == 'ARM64' OR '$(PlatformTarget)' == 'ARM64'">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </Content>
   </ItemGroup>
 </Project>
